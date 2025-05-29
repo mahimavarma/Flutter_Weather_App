@@ -14,6 +14,8 @@ dependencies:
   provider: ^6.0.5
   shared_preferences: ^2.1.0
   intl: ^0.18.0
+  geolocator: ^10.1.0  # Add this for location services
+  geocoding: ^2.1.1    # Add this for converting coordinates to city names
 
 dev_dependencies:
   flutter_test:

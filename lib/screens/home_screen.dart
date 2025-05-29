@@ -28,12 +28,38 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Weather App'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
+        actions: [
+          // Location button in app bar
+          Consumer<WeatherProvider>(
+            builder: (context, weatherProvider, child) {
+              return IconButton(
+                icon: weatherProvider.isLocationLoading 
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.my_location),
+                onPressed: weatherProvider.isLocationLoading 
+                    ? null 
+                    : () {
+                        weatherProvider.getCurrentLocationWeather();
+                      },
+                tooltip: 'Get weather for current location',
+              );
+            },
+          ),
+        ],
       ),
       body: Consumer<WeatherProvider>(
         builder: (context, weatherProvider, child) {
           final currentWeather = weatherProvider.currentWeather;
           final forecast = weatherProvider.forecast;
           final isLoading = weatherProvider.isLoading;
+          final isLocationLoading = weatherProvider.isLocationLoading;
           final error = weatherProvider.error;
           
           return Column(
@@ -65,11 +91,34 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               
+              // Location loading indicator
+              if (isLocationLoading)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Getting your current location...',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              
               // Debug info
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 // child: Text(
-                //   'Debug: Loading: $isLoading, Error: ${error.isEmpty ? 'None' : error}, Forecast days: ${forecast.length}',
+                //   'Debug: Loading: $isLoading, Location Loading: $isLocationLoading, Error: ${error.isEmpty ? 'None' : error}, Forecast days: ${forecast.length}',
                 //   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 // ),
               ),
@@ -94,7 +143,14 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     if (isLoading) {
       return const Center(
-        child: CircularProgressIndicator(),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Loading weather data...'),
+          ],
+        ),
       );
     }
     
@@ -123,14 +179,28 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                weatherProvider.clearError();
-                if (weatherProvider.lastSearchedCity.isNotEmpty) {
-                  weatherProvider.fetchWeatherData(weatherProvider.lastSearchedCity);
-                }
-              },
-              child: const Text('Try Again'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    weatherProvider.clearError();
+                    if (weatherProvider.lastSearchedCity.isNotEmpty) {
+                      weatherProvider.fetchWeatherData(weatherProvider.lastSearchedCity);
+                    }
+                  },
+                  child: const Text('Try Again'),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    weatherProvider.clearError();
+                    weatherProvider.getCurrentLocationWeather();
+                  },
+                  icon: const Icon(Icons.my_location),
+                  label: const Text('Use Location'),
+                ),
+              ],
             ),
           ],
         ),
@@ -138,16 +208,46 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     
     if (currentWeather == null) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'Search for a city to get weather information',
+            const Icon(Icons.search, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text(
+              'Welcome to Weather App!',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Search for a city or use your current location to get started',
               style: TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Column(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    weatherProvider.getCurrentLocationWeather();
+                  },
+                  icon: const Icon(Icons.my_location),
+                  label: const Text('Use Current Location'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'or',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Search for a city in the search bar above',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ],
             ),
           ],
         ),
@@ -164,20 +264,60 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // City and date
-            Text(
-              '${currentWeather.cityName}, ${currentWeather.country}',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              DateFormat('EEEE, d MMMM y').format(DateTime.now()),
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
+            // City and date with location indicator
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${currentWeather.cityName}, ${currentWeather.country}',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        DateFormat('EEEE, d MMMM y').format(DateTime.now()),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Show if this is the last searched city
+                if (weatherProvider.lastSearchedCity == currentWeather.cityName)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.history,
+                          size: 16,
+                          color: Colors.blue[700],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Recent',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 20),
             
@@ -285,12 +425,38 @@ class _HomeScreenState extends State<HomeScreen> {
             
             // Weekly forecast
             const SizedBox(height: 24),
-            const Text(
-              'Weekly Forecast',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Weekly Forecast',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                // Quick location button in forecast section
+                TextButton.icon(
+                  onPressed: weatherProvider.isLocationLoading 
+                      ? null 
+                      : () {
+                          weatherProvider.getCurrentLocationWeather();
+                        },
+                  icon: weatherProvider.isLocationLoading 
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.my_location, size: 16),
+                  label: Text(
+                    weatherProvider.isLocationLoading 
+                        ? 'Getting location...' 
+                        : 'Current Location',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             
